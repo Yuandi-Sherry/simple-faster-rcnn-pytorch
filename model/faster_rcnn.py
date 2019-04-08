@@ -41,10 +41,10 @@ class FasterRCNN(nn.Module):
     :meth:`predict` takes images and returns bounding boxes that are converted
     to image coordinates. This will be useful for a scenario when
     Faster R-CNN is treated as a black box function, for instance.
-    :meth:`__call__` is provided for a scnerario when intermediate outputs
+    :meth:`__call__` is provided for a scenario when intermediate outputs
     are needed, for instance, for training and debugging.
 
-    Links that support obejct detection API have method :meth:`predict` with
+    Links that support object detection API have method :meth:`predict` with
     the same interface. Please refer to :meth:`predict` for
     further details.
 
@@ -60,10 +60,10 @@ class FasterRCNN(nn.Module):
             Please refer to the documentation found there.
         head (nn.Module): A module that takes
             a BCHW variable, RoIs and batch indices for RoIs. This returns class
-            dependent localization paramters and class scores.
+            dependent localization parameters and class scores.
         loc_normalize_mean (tuple of four floats): Mean values of
             localization estimates.
-        loc_normalize_std (tupler of four floats): Standard deviation
+        loc_normalize_std (tuple of four floats): Standard deviation
             of localization estimates.
 
     """
@@ -90,7 +90,7 @@ class FasterRCNN(nn.Module):
     def forward(self, x, scale=1.):
         """Forward Faster R-CNN.
 
-        Scaling paramter :obj:`scale` is used by RPN to determine the
+        Scaling parameter :obj:`scale` is used by RPN to determine the
         threshold to select small objects, which are going to be
         rejected irrespective of their confidence scores.
 
