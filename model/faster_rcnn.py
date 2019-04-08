@@ -2,15 +2,15 @@ from __future__ import  absolute_import
 from __future__ import division
 import torch as t
 import numpy as np
-#import cupy as cp
-from utils import array_tool as at
+import cupy as cp
+from misc.utils import array_tool as at
 from model.utils.bbox_tools import loc2bbox
 from model.utils.nms import non_maximum_suppression
 
 from torch import nn
 from data.dataset import preprocess
 from torch.nn import functional as F
-from utils.config import opt
+from misc.utils import opt
 
 
 def nograd(f):

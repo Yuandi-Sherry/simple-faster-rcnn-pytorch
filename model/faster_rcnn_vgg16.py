@@ -5,8 +5,8 @@ from torchvision.models import vgg16
 from model.region_proposal_network import RegionProposalNetwork
 from model.faster_rcnn import FasterRCNN
 from model.roi_module import RoIPooling2D
-from utils import array_tool as at
-from utils.config import opt
+from misc.utils import array_tool as at
+from misc.utils import opt
 
 
 def decom_vgg16():

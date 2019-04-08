@@ -1,5 +1,5 @@
 import numpy as np
-# import cupy as cp
+import cupy as cp
 
 from model.utils.bbox_tools import bbox2loc, bbox_iou, loc2bbox
 from model.utils.nms import non_maximum_suppression
