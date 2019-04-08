@@ -2,7 +2,7 @@ from collections import namedtuple
 from string import Template
 
 import cupy, torch
-import cupy as cp
+# import cupy as cp
 import torch as t
 from torch.autograd import Function
 
