@@ -19,4 +19,4 @@ import  os
 # speicify the path to save
 if not os.path.exists('checkpoints'):
     os.makedirs('checkpoints')
-torch.save(sd, "checkpoints/vgg16_caffe.pth")
+torch.save("/data3/yanpengxiang/shixun/zyd/simple-faster-rcnn-pytorch", "checkpoints/vgg16_caffe.pth")
