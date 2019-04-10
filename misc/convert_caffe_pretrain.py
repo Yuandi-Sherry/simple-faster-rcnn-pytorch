@@ -4,7 +4,7 @@ import torch
 from torch.utils.model_zoo import load_url
 from torchvision import models
 
-sd = load_url("https://s3-us-west-2.amazonaws.com/jcjohns-models/vgg16-00b39a1b.pth")
+sd = load_url("/data3/yanpengxiang/shixun/zyd/simple-faster-rcnn-pytorch", "https://s3-us-west-2.amazonaws.com/jcjohns-models/vgg16-00b39a1b.pth")
 sd['classifier.0.weight'] = sd['classifier.1.weight']
 sd['classifier.0.bias'] = sd['classifier.1.bias']
 del sd['classifier.1.weight']
@@ -19,4 +19,4 @@ import  os
 # speicify the path to save
 if not os.path.exists('checkpoints'):
     os.makedirs('checkpoints')
-torch.save("/data3/yanpengxiang/shixun/zyd/simple-faster-rcnn-pytorch", "checkpoints/vgg16_caffe.pth")
+torch.save(sd, "checkpoints/vgg16_caffe.pth")
