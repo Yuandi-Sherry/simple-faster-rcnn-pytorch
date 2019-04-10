@@ -1,18 +1,20 @@
 from __future__ import  absolute_import
 # though cupy is not used but without this line, it raise errors...
+import cupy as cp
 import os
 
 import ipdb
 import matplotlib
 from tqdm import tqdm
 
-from utils import opt, array_tool as at
+from utils.config import opt
 from data.dataset import Dataset, TestDataset, inverse_normalize
 from model import FasterRCNNVGG16
 from torch.utils import data as data_
 from trainer import FasterRCNNTrainer
+from utils import array_tool as at
 from utils.vis_tool import visdom_bbox
-from utils import eval_detection_voc
+from utils.eval_tool import eval_detection_voc
 
 # fix for ulimit
 # https://github.com/pytorch/pytorch/issues/973#issuecomment-346405667
