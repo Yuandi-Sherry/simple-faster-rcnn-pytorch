@@ -4,13 +4,14 @@ import ipdb
 import matplotlib
 from tqdm import tqdm
 
-from misc.utils import opt, array_tool as at
+from utils import array_tool as at
+from utils.config import opt
 from data.dataset import Dataset, TestDataset
 from model import FasterRCNNVGG16
 from torch.utils import data as data_
 from trainer import FasterRCNNTrainer
-from misc.utils.vis_tool import visdom_bbox
-from misc.utils import eval_detection_voc
+from utils.vis_tool import visdom_bbox
+from utils import eval_detection_voc
 
 matplotlib.use('agg')
 
