@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="79cd0d43-15cd-4095-86bc-079faadc1f46" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model/faster_rcnn_vgg16.py" beforeDir="false" afterPath="$PROJECT_DIR$/model/faster_rcnn_vgg16.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -68,8 +68,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/model/faster_rcnn_vgg16.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1892">
-              <caret line="16" column="33" selection-start-line="16" selection-start-column="18" selection-end-line="16" selection-end-column="33" />
+            <state relative-caret-position="256">
+              <caret line="16" column="79" selection-start-line="16" selection-start-column="79" selection-end-line="16" selection-end-column="79" />
               <folding>
                 <element signature="e#0#39#0" expanded="true" />
               </folding>
@@ -89,7 +89,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/utils/config.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="496">
+            <state relative-caret-position="460">
               <caret line="67" lean-forward="true" selection-start-line="67" selection-end-line="67" />
             </state>
           </provider>
@@ -148,10 +148,10 @@
         <option value="$PROJECT_DIR$/utils/系统分析与设计-Homework6.md" />
         <option value="$PROJECT_DIR$/train.py" />
         <option value="$PROJECT_DIR$/trainer.py" />
-        <option value="$PROJECT_DIR$/model/faster_rcnn_vgg16.py" />
         <option value="$PROJECT_DIR$/misc/train_fast.py" />
         <option value="$PROJECT_DIR$/utils/config.py" />
         <option value="$PROJECT_DIR$/misc/convert_caffe_pretrain.py" />
+        <option value="$PROJECT_DIR$/model/faster_rcnn_vgg16.py" />
       </list>
     </option>
   </component>
@@ -239,7 +239,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-6" y="0" width="651" height="686" extended-state="0" />
+    <frame x="634" y="0" width="651" height="686" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.048622366" />
@@ -411,6 +411,13 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/utils/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="460">
+          <caret line="67" lean-forward="true" selection-start-line="67" selection-end-line="67" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/trainer.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="171">
@@ -418,17 +425,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/utils/config.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="496">
-          <caret line="67" lean-forward="true" selection-start-line="67" selection-end-line="67" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/model/faster_rcnn_vgg16.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1892">
-          <caret line="16" column="33" selection-start-line="16" selection-start-column="18" selection-end-line="16" selection-end-column="33" />
+        <state relative-caret-position="256">
+          <caret line="16" column="79" selection-start-line="16" selection-start-column="79" selection-end-line="16" selection-end-column="79" />
           <folding>
             <element signature="e#0#39#0" expanded="true" />
           </folding>

@@ -14,7 +14,7 @@ def decom_vgg16():
     if opt.caffe_pretrain:
         model = vgg16(pretrained=False)
         if not opt.load_path:
-            model.load_state_dict(t.load(opt.caffe_pretrain_path))
+            model.load_state_dict(t.load(opt.caffe_pretrain_path), strict=False)
     else:
         model = vgg16(not opt.load_path)
 
