@@ -165,7 +165,7 @@ you may open browser, visit `http://<ip>:8097` and see the visualization of trai
   see [discussion](https://github.com/pytorch/pytorch/issues/973#issuecomment-346405667), It's alreadly fixed in [train.py](https://github.com/chenyuntc/simple-faster-rcnn-pytorch/blob/master/train.py#L17-L22). So I think you are free from this problem.
   
 - Windows support
- 
+
   I don't have windows machine with GPU to debug and test it. It's welcome if anyone could make a pull request and test it.
 
 ## More
