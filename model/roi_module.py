@@ -26,7 +26,7 @@ def GET_BLOCKS(N, K=CUDA_NUM_THREADS):
     return (N + K - 1) // K
 
 
-class RoI(Function):
+class RoI(Function): # 将大小不同的roi变为大小一致，得到pooling后的特征，大小为[300, 512, 7, 7]，每个feature map变成7*7
     def __init__(self, outh, outw, spatial_scale):
         self.forward_fn = load_kernel('roi_forward', kernel_forward)
         self.backward_fn = load_kernel('roi_backward', kernel_backward)
@@ -35,9 +35,9 @@ class RoI(Function):
     def forward(self, x, rois):
         # NOTE: MAKE SURE input is contiguous too
         x = x.contiguous()
-        rois = rois.contiguous()
+        rois = rois.contiguous() # 变成内存中连续分布的形式
         self.in_size = B, C, H, W = x.size()
-        self.N = N = rois.size(0)
+        self.N = N = rois.size(0) # 每张图片所有的anchors数
         output = t.zeros(N, C, self.outh, self.outw).cuda()
         self.argmax_data = t.zeros(N, C, self.outh, self.outw).int().cuda()
         self.rois = rois
@@ -46,12 +46,12 @@ class RoI(Function):
                 self.argmax_data.data_ptr(),
                 self.spatial_scale, C, H, W,
                 self.outh, self.outw,
-                output.numel()]
+                output.numel()] # data_ptr()返回一个时间戳，numel()返回一个tensor变量内的所有元素
         stream = Stream(ptr=torch.cuda.current_stream().cuda_stream)
         self.forward_fn(args=args,
                         block=(CUDA_NUM_THREADS, 1, 1),
                         grid=(GET_BLOCKS(output.numel()), 1, 1),
-                        stream=stream)
+                        stream=stream) # 实现RoI Pooling，调用roi_cupy代码
         return output
 
     def backward(self, grad_output):

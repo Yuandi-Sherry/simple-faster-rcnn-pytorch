@@ -25,22 +25,23 @@ def read_image(path, dtype=np.float32, color=True):
     f = Image.open(path)
     try:
         if color:
-            img = f.convert('RGB')
+            img = f.convert('RGB') # the order of the channels is RGB.
         else:
-            img = f.convert('P')
+            img = f.convert('P') # grey scale
         img = np.asarray(img, dtype=dtype)
     finally:
         if hasattr(f, 'close'):
             f.close()
 
-    if img.ndim == 2:
+    if img.ndim == 2: # 灰度添加维度
         # reshape (H, W) -> (1, H, W)
         return img[np.newaxis]
-    else:
+    else: # 彩色修改通道
         # transpose (H, W, C) -> (C, H, W)
         return img.transpose((2, 0, 1))
 
 
+# 根据图像缩放缩放包围盒
 def resize_bbox(bbox, in_size, out_size):
     """Resize bounding boxes according to image resize.
 
@@ -74,6 +75,7 @@ def resize_bbox(bbox, in_size, out_size):
     return bbox
 
 
+# 翻转包围盒（包围盒数组，图像缩放前大小(H, W)，是否垂直翻转，是否水平翻转
 def flip_bbox(bbox, size, y_flip=False, x_flip=False):
     """Flip bounding boxes accordingly.
 
@@ -99,6 +101,7 @@ def flip_bbox(bbox, size, y_flip=False, x_flip=False):
         Bounding boxes flipped according to the given flips.
 
     """
+    # 翻转后更新左上右下角坐标
     H, W = size
     bbox = bbox.copy()
     if y_flip:
@@ -114,6 +117,7 @@ def flip_bbox(bbox, size, y_flip=False, x_flip=False):
     return bbox
 
 
+# 裁剪包围盒
 def crop_bbox(
         bbox, y_slice=None, x_slice=None,
         allow_outside_center=True, return_param=False):
@@ -125,6 +129,7 @@ def crop_bbox(
     this function truncates the bounding boxes to fit within the cropped area.
     If a bounding box does not overlap with the cropped area,
     this bounding box will be removed.
+    如果包围盒不能和裁剪后区域重合，则包围盒被排除
 
     The bounding boxes are expected to be packed into a two dimensional
     tensor of shape :math:`(R, 4)`, where :math:`R` is the number of
@@ -138,6 +143,7 @@ def crop_bbox(
             :math:`(R, 4)`. :math:`R` is the number of bounding boxes.
         y_slice (slice): The slice of y axis.
         x_slice (slice): The slice of x axis.
+        是否保留包围盒中心不在裁剪区域内的包围盒
         allow_outside_center (bool): If this argument is :obj:`False`,
             bounding boxes whose centers are outside of the cropped area
             are removed. The default value is :obj:`True`.
@@ -160,20 +166,21 @@ def crop_bbox(
 
     """
 
-    t, b = _slice_to_bounds(y_slice)
-    l, r = _slice_to_bounds(x_slice)
-    crop_bb = np.array((t, l, b, r))
+    t, b = _slice_to_bounds(y_slice) # top, bottom
+    l, r = _slice_to_bounds(x_slice) # left, right
+    crop_bb = np.array((t, l, b, r)) # 裁剪后的上左下右
 
     if allow_outside_center:
-        mask = np.ones(bbox.shape[0], dtype=bool)
+        mask = np.ones(bbox.shape[0], dtype=bool) # 全1模板
     else:
-        center = (bbox[:, :2] + bbox[:, 2:]) / 2.0
-        mask = np.logical_and(crop_bb[:2] <= center, center < crop_bb[2:]) \
-            .all(axis=1)
+        center = (bbox[:, :2] + bbox[:, 2:]) / 2.0 # 获取中心点位置
+        # 左上小于center，右下大于center => center在内
+        mask = np.logical_and(crop_bb[:2] <= center, center < crop_bb[2:]).all(axis=1)
+
 
     bbox = bbox.copy()
-    bbox[:, :2] = np.maximum(bbox[:, :2], crop_bb[:2])
-    bbox[:, 2:] = np.minimum(bbox[:, 2:], crop_bb[2:])
+    bbox[:, :2] = np.maximum(bbox[:, :2], crop_bb[:2]) # 左上更新为较大值（靠内部
+    bbox[:, 2:] = np.minimum(bbox[:, 2:], crop_bb[2:]) # 右下更新为较小值（靠内部
     bbox[:, :2] -= crop_bb[:2]
     bbox[:, 2:] -= crop_bb[:2]
 
@@ -190,12 +197,12 @@ def _slice_to_bounds(slice_):
     if slice_ is None:
         return 0, np.inf
 
-    if slice_.start is None:
+    if slice_.start is None: # 原始位置开始
         l = 0
     else:
         l = slice_.start
 
-    if slice_.stop is None:
+    if slice_.stop is None: # 原始位置结束
         u = np.inf
     else:
         u = slice_.stop

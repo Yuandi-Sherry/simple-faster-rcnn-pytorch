@@ -14,26 +14,26 @@ def decom_vgg16():
     if opt.caffe_pretrain:
         model = vgg16(pretrained=False)
         if not opt.load_path:
-            model.load_state_dict(t.load(opt.caffe_pretrain_path), strict=False)
+            model.load_state_dict(t.load(opt.caffe_pretrain_path)) # 加载参数信息
     else:
         model = vgg16(not opt.load_path)
 
-    features = list(model.features)[:30]
+    features = list(model.features)[:30] # 加载vgg16的conv5_3之前的部分
     classifier = model.classifier
 
     classifier = list(classifier)
     del classifier[6]
-    if not opt.use_drop:
+    if not opt.use_drop: # 删除dropout
         del classifier[5]
         del classifier[2]
     classifier = nn.Sequential(*classifier)
 
     # freeze top4 conv
-    for layer in features[:10]:
+    for layer in features[:10]: # 冻结vgg16前2个stage，不进行反向传播
         for p in layer.parameters():
             p.requires_grad = False
 
-    return nn.Sequential(*features), classifier
+    return nn.Sequential(*features), classifier # 拆分成特征提取和分类网络
 
 
 class FasterRCNNVGG16(FasterRCNN):
@@ -102,16 +102,16 @@ class VGG16RoIHead(nn.Module):
         # n_class includes the background
         super(VGG16RoIHead, self).__init__()
 
-        self.classifier = classifier
+        self.classifier = classifier # vgg16最后两个全连接层
         self.cls_loc = nn.Linear(4096, n_class * 4)
         self.score = nn.Linear(4096, n_class)
 
         normal_init(self.cls_loc, 0, 0.001)
-        normal_init(self.score, 0, 0.01)
+        normal_init(self.score, 0, 0.01) # 全连接层权重初始化
 
-        self.n_class = n_class
-        self.roi_size = roi_size
-        self.spatial_scale = spatial_scale
+        self.n_class = n_class # 21
+        self.roi_size = roi_size # 7
+        self.spatial_scale = spatial_scale # 1/16
         self.roi = RoIPooling2D(self.roi_size, self.roi_size, self.spatial_scale)
 
     def forward(self, x, rois, roi_indices):
@@ -137,14 +137,15 @@ class VGG16RoIHead(nn.Module):
         indices_and_rois = t.cat([roi_indices[:, None], rois], dim=1)
         # NOTE: important: yx->xy
         xy_indices_and_rois = indices_and_rois[:, [0, 2, 1, 4, 3]]
+        # 把tensor变成在内存中连续分布的形式
         indices_and_rois = xy_indices_and_rois.contiguous()
 
-        pool = self.roi(x, indices_and_rois)
-        pool = pool.view(pool.size(0), -1)
-        fc7 = self.classifier(pool)
-        roi_cls_locs = self.cls_loc(fc7)
-        roi_scores = self.score(fc7)
-        return roi_cls_locs, roi_scores
+        pool = self.roi(x, indices_and_rois) # 接下来分析roi_module.py的RoI()
+        pool = pool.view(pool.size(0), -1) # flat操作
+        fc7 = self.classifier(pool) # 得到classifier, 4096
+        roi_cls_locs = self.cls_loc(fc7) # 4096 -> 84
+        roi_scores = self.score(fc7) # 4096 -> 21
+        return roi_cls_locs, roi_scores # 输出128*24, 位置参数128*4, 标签128*1
 
 
 def normal_init(m, mean, stddev, truncated=False):

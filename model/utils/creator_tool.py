@@ -4,7 +4,9 @@ import cupy as cp
 from model.utils.bbox_tools import bbox2loc, bbox_iou, loc2bbox
 from model.utils.nms import non_maximum_suppression
 
-
+# 在RoIHead实现，为2000个rois赋予ground truth
+# 输入2000个rois，一张图中所有的bbox ground truth(R,4)，对应bbox包含的Label(R,1)
+# 输出128个sample roi(128 * 4), 128个gt_roi_loc(128,4), 128个gt_roi_label(128,1)
 class ProposalTargetCreator(object):
     """Assign ground truth bounding boxes to given RoIs.
 
@@ -40,6 +42,8 @@ class ProposalTargetCreator(object):
         self.neg_iou_thresh_hi = neg_iou_thresh_hi
         self.neg_iou_thresh_lo = neg_iou_thresh_lo  # NOTE:default 0.1 in py-faster-rcnn
 
+    # 接受ProposalCreator产生的2000个ROIS，但是这些ROIS并不都用于训练
+    # 经过本ProposalTargetCreator的筛选产生128个用于自身的训练
     def __call__(self, roi, bbox, label,
                  loc_normalize_mean=(0., 0., 0., 0.),
                  loc_normalize_std=(0.1, 0.1, 0.2, 0.2)):
@@ -90,20 +94,26 @@ class ProposalTargetCreator(object):
 
         """
         n_bbox, _ = bbox.shape
-
+        # 将2000个roi和m个bbox相连成为新的roi(2000+m, 4)
         roi = np.concatenate((roi, bbox), axis=0)
-
         pos_roi_per_image = np.round(self.n_sample * self.pos_ratio)
+        # 计算每个roi与每个bbox的iou
         iou = bbox_iou(roi, bbox)
+        # 按行找最大值，返回最大值对应的下标以及其IOU。返回每个roi与bbox最大，以及最大的iou值
         gt_assignment = iou.argmax(axis=1)
+        # 每个roi与对应bbox最大的iou
         max_iou = iou.max(axis=1)
         # Offset range of classes from [0, n_fg_class - 1] to [1, n_fg_class].
         # The label with value 0 is the background.
+        # 从1开始的类别序号，给每个类得到真正的label
         gt_roi_label = label[gt_assignment] + 1
 
         # Select foreground RoIs as those with >= pos_iou_thresh IoU.
+        # 从1开始类别序号，给每个类得到真正label 0-19 -> 1-20
         pos_index = np.where(max_iou >= self.pos_iou_thresh)[0]
+        # 根据iou的最大值将正负样本找出
         pos_roi_per_this_image = int(min(pos_roi_per_image, pos_index.size))
+        # 需要保留的roi个数，64及以下，随机丢弃
         if pos_index.size > 0:
             pos_index = np.random.choice(
                 pos_index, size=pos_roi_per_this_image, replace=False)
@@ -115,6 +125,7 @@ class ProposalTargetCreator(object):
         neg_roi_per_this_image = self.n_sample - pos_roi_per_this_image
         neg_roi_per_this_image = int(min(neg_roi_per_this_image,
                                          neg_index.size))
+        # 需要保留roi个数（满足大于0小于neg_iou_thresh_hi条件的roi与64之间较小
         if neg_index.size > 0:
             neg_index = np.random.choice(
                 neg_index, size=neg_roi_per_this_image, replace=False)
@@ -125,20 +136,24 @@ class ProposalTargetCreator(object):
         gt_roi_label[pos_roi_per_this_image:] = 0  # negative labels --> 0
         sample_roi = roi[keep_index]
 
+# 这里输出的128*4的sample_roi可以扔到RoIHead网络里面进行分类回归。同样，RoIHead网络利用这sample_roi+feature为输入，输出分别是分类（21类）和回归的预测值，分类回归的ground truth为ProposalTargetCreator输出的gt_roi_label和gt_roi_loc
         # Compute offsets and scales to match sampled RoIs to the GTs.
         gt_roi_loc = bbox2loc(sample_roi, bbox[gt_assignment[keep_index]])
+        # 求128个样本的ground truth
         gt_roi_loc = ((gt_roi_loc - np.array(loc_normalize_mean, np.float32)
                        ) / np.array(loc_normalize_std, np.float32))
-
+        # 归一化
         return sample_roi, gt_roi_loc, gt_roi_label
 
 
+#在RPN网络实现，生成训练使用的anchor（与对应框iou值最大或者最小的各128个框的坐标和256个label(0或1)）
 class AnchorTargetCreator(object):
     """Assign the ground truth bounding boxes to anchors.
+    将ground truth的包围盒赋值给训练区域的anchors
 
     Assigns the ground truth bounding boxes to anchors for training Region
     Proposal Networks introduced in Faster R-CNN [#]_.
-
+    函数model.utils.bbox_tools.bbox2loc计算匹配ground truth需要的偏移量和缩放量
     Offsets and scales to match anchors to the ground truth are
     calculated using the encoding scheme of
     :func:`model.utils.bbox_tools.bbox2loc`.
@@ -199,18 +214,17 @@ class AnchorTargetCreator(object):
 
         img_H, img_W = img_size
 
-        n_anchor = len(anchor)
-        inside_index = _get_inside_index(anchor, img_H, img_W)
-        anchor = anchor[inside_index]
-        argmax_ious, label = self._create_label(
-            inside_index, anchor, bbox)
+        n_anchor = len(anchor) # 对应20000个足有anchor
+        inside_index = _get_inside_index(anchor, img_H, img_W) # 将超范围的anchor去掉，保留图片内部的序号
+        anchor = anchor[inside_index] # 保留位于图片内部的anchor
+        argmax_ious, label = self._create_label(inside_index, anchor, bbox) # 筛选出符合条件的正例128个负例128个附上label
 
         # compute bounding box regression targets
-        loc = bbox2loc(anchor, bbox[argmax_ious])
+        loc = bbox2loc(anchor, bbox[argmax_ious]) # 计算每个anchor与对应的bbox求得iou最大的bbox计算偏移量
 
         # map up to original set of anchors
-        label = _unmap(label, n_anchor, inside_index, fill=-1)
-        loc = _unmap(loc, n_anchor, inside_index, fill=0)
+        label = _unmap(label, n_anchor, inside_index, fill=-1) # 将位于图片内部的框label对应到所生成的20000个框中（label原本为所有图片中的框）
+        loc = _unmap(loc, n_anchor, inside_index, fill=0) # 将回归的框对应到所生成的20000个框中
 
         return loc, label
 
@@ -218,31 +232,36 @@ class AnchorTargetCreator(object):
         # label: 1 is positive, 0 is negative, -1 is dont care
         label = np.empty((len(inside_index),), dtype=np.int32)
         label.fill(-1)
-
+        # 得到每个anchor与哪个bbox的iou最大以及iou值 todo 体会行和列取最大值的区别
         argmax_ious, max_ious, gt_argmax_ious = \
             self._calc_ious(anchor, bbox, inside_index)
-
+        # 把每个anchor与对应的框求得iou值与负样本阈值比较，小于负样本阈值，则label为0，
         # assign negative labels first so that positive labels can clobber them
         label[max_ious < self.neg_iou_thresh] = 0
-
+        # 把与每个bbox求得iou值最大的anchor的label设为1
         # positive label: for each gt, anchor with highest iou
         label[gt_argmax_ious] = 1
 
-        # positive label: above threshold IOU
+        # 把每个anchor与对应的框求得的iou值与正样本阈值比较，若大于正样本阈值，则label设为1
         label[max_ious >= self.pos_iou_thresh] = 1
 
-        # subsample positive labels if we have too many
+        # 按比例计算正样本数量
         n_pos = int(self.pos_ratio * self.n_sample)
+        # 得到所有正样本的索引
         pos_index = np.where(label == 1)[0]
+        # 如果选取出来的正样本太多，随机抛弃，将抛弃的label设为-1
         if len(pos_index) > n_pos:
             disable_index = np.random.choice(
                 pos_index, size=(len(pos_index) - n_pos), replace=False)
             label[disable_index] = -1
 
-        # subsample negative labels if we have too many
+        # 设定负样本数量
         n_neg = self.n_sample - np.sum(label == 1)
+        # 找到负样本索引
         neg_index = np.where(label == 0)[0]
+        # 如果负样本数量太多
         if len(neg_index) > n_neg:
+            # 随机选择不要的负样本
             disable_index = np.random.choice(
                 neg_index, size=(len(neg_index) - n_neg), replace=False)
             label[disable_index] = -1
@@ -250,13 +269,13 @@ class AnchorTargetCreator(object):
         return argmax_ious, label
 
     def _calc_ious(self, anchor, bbox, inside_index):
-        # ious between the anchors and the gt boxes
+        # 计算anchor与bbox的IOU，N个anchor，K个bbox
         ious = bbox_iou(anchor, bbox)
-        argmax_ious = ious.argmax(axis=1)
-        max_ious = ious[np.arange(len(inside_index)), argmax_ious]
+        argmax_ious = ious.argmax(axis=1) # 1代表行，0代表列
+        max_ious = ious[np.arange(len(inside_index)), argmax_ious] # 求出每个anchor与哪个bbox的iou最大，以及最大值，max_ious:[1, N]
         gt_argmax_ious = ious.argmax(axis=0)
-        gt_max_ious = ious[gt_argmax_ious, np.arange(ious.shape[1])]
-        gt_argmax_ious = np.where(ious == gt_max_ious)[0]
+        gt_max_ious = ious[gt_argmax_ious, np.arange(ious.shape[1])] # 求出每个bbox与哪个anchor的iou最大，以及最大值，gt_max_ious:[1,k]
+        gt_argmax_ious = np.where(ious == gt_max_ious)[0] # 返回最大iou索引（有k个）
 
         return argmax_ious, max_ious, gt_argmax_ious
 
@@ -288,10 +307,13 @@ def _get_inside_index(anchor, H, W):
     return index_inside
 
 
+# 在RPN网络实现，生成regions
 class ProposalCreator:
-    # unNOTE: I'll make it undifferential
-    # unTODO: make sure it's ok
-    # It's ok
+    # 对于每张图片，利用它的feature map，计算（H/16）x(W/16)x9(大概20000)个anchor
+    # 属于前景的概率，然后从中选取概率较大的12000张，利用位置回归参数，
+    # 修正这12000个anchor的位置，
+    # 利用非极大值抑制，选出2000个ROIS以及对应的位置参数。
+
     """Proposal regions are generated by calling this object.
 
     The :meth:`__call__` of this object outputs object detection proposals by
@@ -345,6 +367,8 @@ class ProposalCreator:
         self.n_test_post_nms = n_test_post_nms
         self.min_size = min_size
 
+
+    # 这里的loc和score是经过region_proposal_network中经过1x1卷积分类和回归得到的
     def __call__(self, loc, score,
                  anchor, img_size, scale=1.):
         """input should  be ndarray
@@ -385,45 +409,42 @@ class ProposalCreator:
         # faster_rcnn.eval()
         # to set self.traing = False
         if self.parent_model.training:
-            n_pre_nms = self.n_train_pre_nms
-            n_post_nms = self.n_train_post_nms
+            n_pre_nms = self.n_train_pre_nms # 12000
+            n_post_nms = self.n_train_post_nms # 2000
         else:
-            n_pre_nms = self.n_test_pre_nms
-            n_post_nms = self.n_test_post_nms
+            n_pre_nms = self.n_test_pre_nms # 6000
+            n_post_nms = self.n_test_post_nms # 300
 
         # Convert anchors into proposal via bbox transformations.
-        # roi = loc2bbox(anchor, loc)
         roi = loc2bbox(anchor, loc)
 
         # Clip predicted boxes to image.
-        roi[:, slice(0, 4, 2)] = np.clip(
-            roi[:, slice(0, 4, 2)], 0, img_size[0])
-        roi[:, slice(1, 4, 2)] = np.clip(
-            roi[:, slice(1, 4, 2)], 0, img_size[1])
+        # 裁剪将rois的ymin,ymax限定在[0,H]
+        roi[:, slice(0, 4, 2)] = np.clip(roi[:, slice(0, 4, 2)], 0, img_size[0])
+        # 裁剪将rois的xmin,xmax限定在[0,W]
+        roi[:, slice(1, 4, 2)] = np.clip(roi[:, slice(1, 4, 2)], 0, img_size[1])
 
         # Remove predicted boxes with either height or width < threshold.
         min_size = self.min_size * scale
-        hs = roi[:, 2] - roi[:, 0]
-        ws = roi[:, 3] - roi[:, 1]
-        keep = np.where((hs >= min_size) & (ws >= min_size))[0]
+        hs = roi[:, 2] - roi[:, 0] # rois的宽
+        ws = roi[:, 3] - roi[:, 1] # rois的长
+        keep = np.where((hs >= min_size) & (ws >= min_size))[0] # 确保rois的长宽大于最小阈值
         roi = roi[keep, :]
-        score = score[keep]
+        score = score[keep] # 对剩下的ROIs进行打分（根据region_proposal_network中rois的预测前景概率）
 
         # Sort all (proposal, score) pairs by score from highest to lowest.
         # Take top pre_nms_topN (e.g. 6000).
-        order = score.ravel().argsort()[::-1]
+        order = score.ravel().argsort()[::-1] # score拉伸并且排序
         if n_pre_nms > 0:
-            order = order[:n_pre_nms]
+            order = order[:n_pre_nms] #训练取前1200，test取前6000
         roi = roi[order, :]
 
         # Apply nms (e.g. threshold = 0.7).
         # Take after_nms_topN (e.g. 300).
 
-        # unNOTE: somthing is wrong here!
-        # TODO: remove cuda.to_gpu
         keep = non_maximum_suppression(
             cp.ascontiguousarray(cp.asarray(roi)),
-            thresh=self.nms_thresh)
+            thresh=self.nms_thresh) # NMS原理以及输入参数的作用，将重复的抑制掉，train得到2000，test得到300
         if n_post_nms > 0:
             keep = keep[:n_post_nms]
         roi = roi[keep]
